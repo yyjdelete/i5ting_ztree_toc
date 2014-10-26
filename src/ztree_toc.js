@@ -6,9 +6,9 @@
  */
 function encode_id_with_array(opts,arr) {
 	var result = 0;
-  for(var z = 0; z < arr.length; z++ ) {
+	for(var z = 0; z < arr.length; z++ ) {
 		result += factor(opts, arr.length - z ,arr[z]);
-  }
+	}
 
 	return result;
 }
@@ -20,34 +20,46 @@ function encode_id_with_array(opts,arr) {
  *
  * 1 = 0*100 +1
 
-	1,1 = 100
+   1,1 = 100
 
  */
 function get_parent_id_with_array(opts,arr) {
+	// var result_arr = arr.slice(0);//副本
 	var result_arr = [];
-
-  for(var z = 0; z < arr.length; z++ ) {
+	for(var z = 0; z < arr.length; z++ ) {
 		result_arr.push(arr[z]);
-  }
+	}
 
-	result_arr.pop();
-
-	var result = 0;
-  for(var z = 0; z < result_arr.length; z++ ) {
-		result += factor(opts,result_arr.length - z,result_arr[z]);
-  }
+	var result;
+	do{
+		result_arr.pop();
+		result=0;
+		
+		for(var z = 0; z < result_arr.length; z++ ) {
+			result += factor(opts,result_arr.length - z,result_arr[z]);
+		}
+	}while(!hasNode(opts,result) && result_arr.length);
+	//确认计算出的父节点id是否真的存在,若不存在向上追溯
 
 	return result;
 }
-
+//确认id的节点是否存在 (对于不规则章节的部分处理, 例如直接从h2开始写)
+function hasNode(opts,id){
+	var arr=opts._header_nodes;
+	for(var i=0;i<arr.length;i++){
+		if(arr[i].id==id)return true;
+	}
+	return false;
+}
 function factor(opts ,count,current) {
 	if(1 == count) {
 		return current;
 	}
-
-	var str = '';
+	//原来这里存在逻辑bug, 只是轻轻的改了一下
+	//不过这里直接改用 数值计算 比 字符串拼接eval更好吧.
+	var str = 'current * ';
 	for(var i = count - 1;i > 0; i-- ) {
-		str += current * opts.step+'*';
+		str +=  opts.step+'*';
 	}
 
 	return eval( str + '1' );
@@ -62,7 +74,8 @@ function factor(opts ,count,current) {
 			var level = parseInt(this.nodeName.substring(1), 10);
 
 			_rename_header_content(opts,this,level);
-
+			//console.log(this);
+			//console.log('headers:'+opts._headers);
 			_add_header_node(opts,$(this));
 		});//end each
 	}
@@ -95,15 +108,17 @@ function factor(opts ,count,current) {
 	 * 将已有header编号，并重命名
 	 */
 	function _rename_header_content(opts ,header_obj ,level) {
+		//_headrs[] 存储各级标题的序号, 然后连成 1.1.2  形式
 		if(opts._headers.length == level) {
 			opts._headers[level - 1]++;
 		} else if(opts._headers.length > level) {
 			opts._headers = opts._headers.slice(0, level);
 			opts._headers[level - 1] ++;
 		} else if(opts._headers.length < level) {
-			for(var i = 0; i < (level - opts._headers.length); i++) {
-			  // console.log('push 1');
-			  opts._headers.push(1);
+			//for(var i = 0; i < (level - opts._headers.length); i++) {
+			while(opts._headers.length < level){
+				// console.log('push 1');
+				opts._headers.push(1);
 			}
 		}
 
@@ -132,7 +147,7 @@ function factor(opts ,count,current) {
 	/*
 	 * 给ztree用的header_nodes增加数据
 	 */
-	function _add_header_node(opts ,header_obj) {
+	function _add_header_node(opts, header_obj) {
 		var id  = encode_id_with_array(opts,opts._headers);//for ztree
 		var pid = get_parent_id_with_array(opts,opts._headers);//for ztree
 		var anchor = id;//use_head_anchor.html#第二部分
@@ -142,7 +157,7 @@ function factor(opts ,count,current) {
 			anchor = _get_anchor_from_head(header_obj);
 		}
 		
-    // 设置锚点id
+		// 设置锚点id
 		$(header_obj).attr('id',anchor);
 
 		log($(header_obj).text());
@@ -154,11 +169,33 @@ function factor(opts ,count,current) {
 		opts._header_nodes.push({
 			id:id,
 			pId:pid ,
-			name:$(header_obj).text()||'null',
-			open:true,
+			name:$(header_obj).text()||'null',//显示名称
+			open:true,//默认展开的 树节点
 			url:'#'+ anchor,
 			target:'_self'
 		});
+	}
+	/*
+	 * 计算章节的 offset
+	 * 在需要的时机再自行调用,以重算 章节偏移.
+	 * 例如 图片资源加载完时, 代码段 折叠展开时 等改变章节偏移的事件发生后.
+	 */
+	function recalc_offset(opts){
+		var old_offsets=opts._header_offsets.slice(0);
+		var new_offsets=[];
+		
+		$(opts.documment_selector).find(':header').each(function(i,o) {
+			new_offsets.push($(o).offset().top - opts.highlight_offset);
+		});
+		
+		var isWork=old_offsets.join(',') != new_offsets.join(',');
+		console.log('recalc_offset is work:', isWork );
+		if(isWork){
+			console.log(old_offsets);
+			console.log(new_offsets);
+		}
+
+		opts._header_offsets=new_offsets;
 	}
 
 	/*
@@ -166,41 +203,51 @@ function factor(opts ,count,current) {
 	 */
 	function bind_scroll_event_and_update_postion(opts) {
 		var timeout;
-	    var highlight_on_scroll = function(e) {
+		old_i=0;
+		var highlight_on_scroll = function(e) {
 			if (timeout) {
 				clearTimeout(timeout);
 			}
 
 			timeout = setTimeout(function() {
-				var top = $(opts.scroll_selector).scrollTop(),highlighted;
+				var top = $(opts.scroll_selector).scrollTop();
 
 				if(opts.debug) console.log('top='+top);
 
-				for (var i = 0, c = opts._header_offsets.length; i < c; i++) {
+				var i,c = opts._header_offsets.length;
+				for (i = 0 ; i < c; i++) {
 					// fixed: top+5防止点击ztree的时候，出现向上抖动的情况
 					if (opts._header_offsets[i] >= (top + 5) ) {
-						console.log('opts._header_offsets['+ i +'] = '+opts._header_offsets[i]);
-						$('a').removeClass('curSelectedNode');
+						if(opts.debug)console.log('opts._header_offsets['+ i +'] = '+opts._header_offsets[i]);
 
-						// 由于有root节点，所以i应该从1开始
-				  		var obj = $('#tree_' + (i+1) + '_a').addClass('curSelectedNode');
 						break;
 					}
 				}
+				//这里原来出现逻辑bug,导致最后一个标题滚不到
+				//顺便加了变量缓存当前章节,避免页面一滚动就操作页面dom(只在章节改变时才操作)
+				if(i!=old_i){
+					old_i=i;
+					$('a').removeClass('curSelectedNode');
+					// 由于有root节点，所以i应该从1开始
+					var obj = $('#tree_' + (i+1) + '_a').addClass('curSelectedNode');
+				}
+
 			}, opts.refresh_scroll_time);
 		};
 
-	  if (opts.highlight_on_scroll) {
-	    $(opts.scroll_selector).bind('scroll', highlight_on_scroll);
-	    highlight_on_scroll();
-	  }
+		if (opts.highlight_on_scroll) {
+			$(opts.scroll_selector).bind('scroll', highlight_on_scroll);
+			highlight_on_scroll();
+		}
+		$(window).bind('load',function(){recalc_offset(opts)});
 	}
 
 	/*
 	 * 初始化
 	 */
 	function init_with_config(opts) {
-		opts.highlight_offset = $(opts.documment_selector).offset().top;
+		//opts.highlight_offset = $(opts.documment_selector).offset().top;
+		opts.highlight_offset = $('body').offset().top;
 	}
 
 	/*
@@ -214,8 +261,10 @@ function factor(opts ,count,current) {
 	}
 
 	$.fn.ztree_toc = function(options) {
+
 		// 将defaults 和 options 参数合并到{}
 		var opts = $.extend({},$.fn.ztree_toc.defaults,options);
+		window._opts=opts;
 
 		return this.each(function() {
 			opts._zTree = $(this);
@@ -230,7 +279,7 @@ function factor(opts ,count,current) {
 			render_with_ztree(opts);
 
 			// 根据滚动确定当前位置，并更新ztree
-		    bind_scroll_event_and_update_postion(opts);
+			bind_scroll_event_and_update_postion(opts);
 		});
 		// each end
 	}
@@ -249,7 +298,7 @@ function factor(opts ,count,current) {
 		 * 此选项默认是false，不开启
 		 */
 		use_head_anchor: false,
-    scroll_selector: 'window',
+		scroll_selector: 'window',//在chrome上 $(window) 为空
 		highlight_offset: 0,
 		highlight_on_scroll: true,
 		/*
@@ -277,11 +326,11 @@ function factor(opts ,count,current) {
 		ztreeStyle: {
 			width:'260px',
 			overflow: 'auto',
-			position: 'fixed',
-			'z-index': 2147483647,
-			border: '0px none',
-			left: '0px',
-			bottom: '0px',
+			//position: 'fixed',
+			'z-index': 10,
+			//border: '0px none',
+			//left: '0px',
+			//bottom: '0px',
 			// height:'100px'
 		},
 		ztreeSetting: {
@@ -308,7 +357,7 @@ function factor(opts ,count,current) {
 					}
 					if($.fn.ztree_toc.defaults.is_highlight_selected_line == true) {
 						$('#' + treeNode.id).css('color' ,'red').fadeOut("slow" ,function() {
-						    // Animation complete.
+								// Animation complete.
 							$(this).show().css('color','black');
 						});
 					}
