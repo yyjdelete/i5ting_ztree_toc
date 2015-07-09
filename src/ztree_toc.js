@@ -40,7 +40,7 @@ function get_parent_id_with_array(opts, arr) {
 		for(var z = 0; z < result_arr.length; z++ ) {
 			result += factor(opts, result_arr.length - z, result_arr[z]);
 		}
-	} while(!hasNode(opts, result) && result_arr.length);
+	} while(!hasNode(opts, result) && result_arr.length > 0);
 	//确认计算出的父节点id是否真的存在,若不存在向上追溯
 
 	return result;
@@ -49,6 +49,7 @@ function get_parent_id_with_array(opts, arr) {
 //确认id的节点是否存在 (对于不规则章节的部分处理, 例如直接从h2开始写)
 function hasNode(opts, id){
 	var arr = opts._header_nodes;
+	if (!arr) return true;
 	for(var i = 0; i < arr.length; i++){
 		if(arr[i].id == id)return true;
 	}
@@ -62,12 +63,12 @@ function factor(opts, count, current) {
 
 	//原来这里存在逻辑bug, 只是轻轻的改了一下
 	//不过这里直接改用 数值计算 比 字符串拼接eval更好吧.
-	var str = current;
+	var str = current * 1;
 	for(var i = count - 1;i > 0; i-- ) {
 		str *= opts.step;
 	}
 
-	return str + 1;
+	return str;
 }
 
 ;(function($) {
