@@ -7,10 +7,10 @@
  *
  * 1 = 0*100 +1
  */
-function encode_id_with_array(opts,arr) {
+function encode_id_with_array(opts, arr) {
 	var result = 0;
 	for(var z = 0; z < arr.length; z++ ) {
-		result += factor(opts, arr.length - z ,arr[z]);
+		result += factor(opts, arr.length - z, arr[z]);
 	}
 
 	return result;
@@ -26,46 +26,48 @@ function encode_id_with_array(opts,arr) {
 	1,1 = 100
 
  */
-function get_parent_id_with_array(opts,arr) {
-	// var result_arr = arr.slice(0);//副本
+function get_parent_id_with_array(opts, arr) {
 	var result_arr = [];
 	for(var z = 0; z < arr.length; z++ ) {
 		result_arr.push(arr[z]);
 	}
 
 	var result;
-	do{
-	result_arr.pop();
+	do {
+		result_arr.pop();
 		result=0;
 
 		for(var z = 0; z < result_arr.length; z++ ) {
-		result += factor(opts,result_arr.length - z,result_arr[z]);
+			result += factor(opts, result_arr.length - z, result_arr[z]);
 		}
-	}while(!hasNode(opts,result) && result_arr.length);
+	} while(!hasNode(opts, result) && result_arr.length);
 	//确认计算出的父节点id是否真的存在,若不存在向上追溯
 
 	return result;
 }
+
 //确认id的节点是否存在 (对于不规则章节的部分处理, 例如直接从h2开始写)
-function hasNode(opts,id){
-	var arr=opts._header_nodes;
-	for(var i=0;i<arr.length;i++){
-		if(arr[i].id==id)return true;
+function hasNode(opts, id){
+	var arr = opts._header_nodes;
+	for(var i = 0; i < arr.length; i++){
+		if(arr[i].id == id)return true;
 	}
 	return false;
 }
-function factor(opts ,count,current) {
+
+function factor(opts, count, current) {
 	if(1 == count) {
-		return current;
-	}
-	//原来这里存在逻辑bug, 只是轻轻的改了一下
-	//不过这里直接改用 数值计算 比 字符串拼接eval更好吧.
-	var str = 'current * ';
-	for(var i = count - 1;i > 0; i-- ) {
-		str +=  opts.step+'*';
+		return current * 1;
 	}
 
-	return eval( str + '1' );
+	//原来这里存在逻辑bug, 只是轻轻的改了一下
+	//不过这里直接改用 数值计算 比 字符串拼接eval更好吧.
+	var str = current;
+	for(var i = count - 1;i > 0; i-- ) {
+		str *= opts.step;
+	}
+
+	return str + 1;
 }
 
 ;(function($) {
@@ -77,8 +79,8 @@ function factor(opts ,count,current) {
 			var level = parseInt(this.nodeName.substring(1), 10);
 
 			_rename_header_content(opts,this,level);
-			//console.log(this);
-			//console.log('headers:'+opts._headers);
+			//if(opts.debug) console.log(this);
+			//if(opts.debug) console.log('headers:'+opts._headers);
 			_add_header_node(opts,$(this));
 		});//end each
 	}
@@ -118,7 +120,6 @@ function factor(opts ,count,current) {
 			opts._headers = opts._headers.slice(0, level);
 			opts._headers[level - 1] ++;
 		} else if(opts._headers.length < level) {
-			//for(var i = 0; i < (level - opts._headers.length); i++) {
 			while(opts._headers.length < level){
 				//if(opts.debug) console.log('push 1');
 				opts._headers.push(1);
@@ -150,7 +151,7 @@ function factor(opts ,count,current) {
 	/*
 	 * 给ztree用的header_nodes增加数据
 	 */
-	function _add_header_node(opts ,header_obj) {
+	function _add_header_node(opts, header_obj) {
 		var id	= $(header_obj).attr('id');
 		if (id != null)
 			encode_id_with_array(opts,opts._headers);//for ztree
@@ -180,6 +181,7 @@ function factor(opts ,count,current) {
 			target:'_self'
 		});
 	}
+
 	/*
 	 * 计算章节的 offset
 	 * 在需要的时机再自行调用,以重算 章节偏移.
@@ -194,10 +196,10 @@ function factor(opts ,count,current) {
 		});
 		
 		var isWork=old_offsets.join(',') != new_offsets.join(',');
-		console.log('recalc_offset is work:', isWork );
+		if(opts.debug) console.log('recalc_offset is work:', isWork );
 		if(isWork){
-			console.log(old_offsets);
-			console.log(new_offsets);
+			if(opts.debug) console.log(old_offsets);
+			if(opts.debug) console.log(new_offsets);
 		}
 
 		opts._header_offsets=new_offsets;
@@ -208,7 +210,7 @@ function factor(opts ,count,current) {
 	 */
 	function bind_scroll_event_and_update_postion(opts) {
 		var timeout;
-		old_i=0;
+		var old_i=0;
 		var highlight_on_scroll = function(e) {
 			if (timeout) {
 				clearTimeout(timeout);
@@ -232,10 +234,10 @@ function factor(opts ,count,current) {
 				//顺便加了变量缓存当前章节,避免页面一滚动就操作页面dom(只在章节改变时才操作)
 				if(i!=old_i){
 					old_i=i;
-						$('a').removeClass('curSelectedNode');
-						// 由于有root节点，所以i应该从1开始
+					$('a').removeClass('curSelectedNode');
+					// 由于有root节点，所以i应该从1开始
 					var obj = $('#tree_' + (i+1) + '_a').addClass('curSelectedNode');
-					}
+				}
 
 			}, opts.refresh_scroll_time);
 		};
@@ -251,8 +253,7 @@ function factor(opts ,count,current) {
 	 * 初始化
 	 */
 	function init_with_config(opts) {
-		//opts.highlight_offset = $(opts.documment_selector).offset().top;
-		opts.highlight_offset = $('body').offset().top;
+		opts.highlight_offset = $(opts.documment_selector).offset().top;
 	}
 
 	/*
@@ -332,11 +333,11 @@ function factor(opts ,count,current) {
 		ztreeStyle: {
 			width:'260px',
 			overflow: 'auto',
-			//position: 'fixed',
-			'z-index': 10,
-			//border: '0px none',
-			//left: '0px',
-			//bottom: '0px',
+			position: 'fixed',
+			'z-index': 2147483647,
+			border: '0px none',
+			left: '0px',
+			bottom: '0px',
 			// height:'100px'
 		},
 		ztreeSetting: {
