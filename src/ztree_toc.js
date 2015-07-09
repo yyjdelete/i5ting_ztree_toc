@@ -255,7 +255,7 @@ function factor(opts ,count,current) {
 		 * 此选项默认是false，不开启
 		 */
 		use_head_anchor: false,
-		scroll_selector: 'window',
+		scroll_selector: window,
 		highlight_offset: 0,
 		highlight_on_scroll: true,
 		/*
