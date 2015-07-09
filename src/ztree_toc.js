@@ -136,7 +136,9 @@ function factor(opts ,count,current) {
 	 * 给ztree用的header_nodes增加数据
 	 */
 	function _add_header_node(opts ,header_obj) {
-		var id  = encode_id_with_array(opts,opts._headers);//for ztree
+		var id	= $(header_obj).attr('id');
+		if (id != null)
+			encode_id_with_array(opts,opts._headers);//for ztree
 		var pid = get_parent_id_with_array(opts,opts._headers);//for ztree
 		var anchor = id;//use_head_anchor.html#第二部分
 
