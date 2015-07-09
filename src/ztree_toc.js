@@ -105,7 +105,7 @@ function factor(opts ,count,current) {
 			opts._headers[level - 1] ++;
 		} else if(opts._headers.length < level) {
 			for(var i = 0; i < (level - opts._headers.length); i++) {
-				// console.log('push 1');
+				//if(opts.debug) console.log('push 1');
 				opts._headers.push(1);
 			}
 		}
@@ -184,7 +184,7 @@ function factor(opts ,count,current) {
 				for (var i = 0, c = opts._header_offsets.length; i < c; i++) {
 					// fixed: top+5防止点击ztree的时候，出现向上抖动的情况
 					if (opts._header_offsets[i] >= (top + 5) ) {
-						console.log('opts._header_offsets['+ i +'] = '+opts._header_offsets[i]);
+						opts.debug && console.log('opts._header_offsets['+ i +'] = '+opts._header_offsets[i]);
 						$('a').removeClass('curSelectedNode');
 
 						// 由于有root节点，所以i应该从1开始
@@ -221,6 +221,7 @@ function factor(opts ,count,current) {
 	$.fn.ztree_toc = function(options) {
 		// 将defaults 和 options 参数合并到{}
 		var opts = $.extend({},$.fn.ztree_toc.defaults,options);
+		opts.debug = opts.debug & (!!(console && console.log));
 
 		return this.each(function() {
 			opts._zTree = $(this);
