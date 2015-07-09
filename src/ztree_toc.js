@@ -115,7 +115,7 @@ function factor(opts ,count,current) {
 			if($(header_obj).text().indexOf( opts._headers.join('.') ) != -1){
 
 			}else{
-				$(header_obj).text(opts._headers.join('.') + '. ' + $(header_obj).text());
+				$(header_obj).html(opts._headers.join('.') + '. ' + $(header_obj).html());
 			}
 		}
 	}
