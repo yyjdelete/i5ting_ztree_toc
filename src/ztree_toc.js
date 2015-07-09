@@ -192,6 +192,7 @@ function factor(opts, count, current) {
 		var old_offsets=opts._header_offsets.slice(0);
 		var new_offsets=[];
 
+		opts.highlight_offset = $(opts.documment_selector).offset().top;
 		$(opts.documment_selector).find(':header').each(function(i,o) {
 			new_offsets.push($(o).offset().top - opts.highlight_offset);
 		});
